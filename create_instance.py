@@ -11,6 +11,7 @@ config = {
 SSH_PUB_KEY = os.environ["OCI_SSH_PUBLIC_KEY"]
 COMPARTMENT = os.environ["OCI_COMPARTMENT_OCID"]
 SUBNET      = os.environ["OCI_SUBNET_OCID"]
+NTFY_TOPIC  = "oracle-teynz-7x92"  # ← hier deinen eigenen Namen einsetzen
 
 ADS = [
     "zsnG:EU-FRANKFURT-1-AD-1",
@@ -81,7 +82,7 @@ def try_create(ad, image_ocid):
         source_details = oci.core.models.InstanceSourceViaImageDetails(
             image_id                = image_ocid,
             source_type             = "image",
-            boot_volume_size_in_gbs = 50,
+            boot_volume_size_in_gbs = 200,
         ),
         create_vnic_details = oci.core.models.CreateVnicDetails(
             subnet_id        = SUBNET,
@@ -92,8 +93,7 @@ def try_create(ad, image_ocid):
     return compute.launch_instance(details)
 
 
-def print_public_ip(instance_id):
-    """Wartet bis VNIC verfügbar ist und printet Public IP."""
+def get_public_ip(instance_id):
     for _ in range(12):  # max 60s warten
         try:
             vnic_attachments = compute.list_vnic_attachments(
@@ -103,13 +103,26 @@ def print_public_ip(instance_id):
             if vnic_attachments:
                 vnic = network.get_vnic(vnic_attachments[0].vnic_id).data
                 if vnic.public_ip:
-                    print(f"Public IP: {vnic.public_ip}")
-                    print(f"SSH: ssh ubuntu@{vnic.public_ip}")
-                    return
+                    return vnic.public_ip
         except Exception as e:
             print(f"  VNIC noch nicht bereit: {e}")
         time.sleep(5)
-    print("Public IP konnte nicht abgerufen werden — in OCI Console nachsehen.")
+    return None
+
+
+def send_notification(ip):
+    msg = f"Oracle Instanz erstellt! SSH: ubuntu@{ip}" if ip else "Oracle Instanz erstellt! IP noch nicht verfügbar — OCI Console checken."
+    req = urllib.request.Request(
+        f"https://ntfy.sh/{NTFY_TOPIC}",
+        data=msg.encode(),
+        method="POST",
+        headers={"Title": "Oracle Cloud Instance bereit!"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+        print("Benachrichtigung gesendet.")
+    except Exception as e:
+        print(f"Benachrichtigung fehlgeschlagen: {e}")
 
 
 # === Hauptlogik ===
@@ -126,22 +139,22 @@ for ad in ADS:
         print(f"[{datetime.datetime.now(datetime.UTC)}] Versuche {ad}...")
         resp = try_create(ad, image_ocid)
         print(f"ERFOLG in {ad}: {resp.data.id}")
-        print_public_ip(resp.data.id)
+        ip = get_public_ip(resp.data.id)
+        if ip:
+            print(f"Public IP: {ip}")
+            print(f"SSH: ssh ubuntu@{ip}")
+        send_notification(ip)
         disable_workflow()
         sys.exit(0)
     except oci.exceptions.ServiceError as e:
         msg = str(e.message or "")
         status = e.status
-
-        # Retry-bare Fehler → nächste AD probieren
         if "Out of host capacity" in msg or status == 500:
             print(f"  → {ad}: keine Capacity (status {status})")
             continue
         if status == 429:
             print(f"  → Rate Limit erreicht, beende sauber.")
             sys.exit(0)
-
-        # Fatale Fehler → abbrechen
         print(f"  → Fataler Fehler in {ad}: status={status}, msg={msg}")
         sys.exit(1)
 
