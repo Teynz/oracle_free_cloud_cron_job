@@ -1,5 +1,4 @@
 name: Oracle Instance Creator
-
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -8,21 +7,22 @@ on:
 jobs:
   create:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
+          python-version: '3.12'
       - run: pip install oci
-
       - name: Write private key
+        env:
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/key.pem
+          printf '%s\n' "$OCI_PRIVATE_KEY" > ~/.oci/key.pem
           chmod 600 ~/.oci/key.pem
-
       - name: Try to create instance
         env:
           OCI_USER_OCID:        ${{ secrets.OCI_USER_OCID }}
@@ -32,4 +32,5 @@ jobs:
           OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
           OCI_SUBNET_OCID:      ${{ secrets.OCI_SUBNET_OCID }}
           OCI_SSH_PUBLIC_KEY:   ${{ vars.OCI_SSH_PUBLIC_KEY }}
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
         run: python create_instance.py
