@@ -43,7 +43,9 @@ def try_create(ad, image_ocid):
             ocpus=4, memory_in_gbs=24,
         ),
         source_details = oci.core.models.InstanceSourceViaImageDetails(
-            image_id=image_ocid, source_type="image",
+            image_id              = image_ocid,
+            source_type           = "image",
+            boot_volume_size_in_gbs = 200,   # ← hier anpassen (47-200)
         ),
         create_vnic_details = oci.core.models.CreateVnicDetails(
             subnet_id        = os.environ["OCI_SUBNET_OCID"],
