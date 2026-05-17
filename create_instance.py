@@ -8,7 +8,7 @@ config = {
     "key_file":    os.path.expanduser("~/.oci/key.pem"),
 }
 
-SSH_PUB_KEY = "PASTE_YOUR_SSH_PUBLIC_KEY_HERE"
+SSH_PUB_KEY = os.environ["OCI_SSH_PUBLIC_KEY"]
 
 ADS = [
     "zsnG:EU-FRANKFURT-1-AD-1",
