@@ -1,4 +1,4 @@
-import oci, os, sys, datetime, urllib.request, time
+import oci, os, sys, datetime, urllib.request, time, json
 
 config = {
     "user":        os.environ["OCI_USER_OCID"],
@@ -24,6 +24,12 @@ network = oci.core.VirtualNetworkClient(config)
 
 
 def disable_workflow():
+    """Deaktiviert sowohl GitHub Workflow als auch cron-job.org Job."""
+    _disable_github_workflow()
+    _disable_cronjob_org()
+
+
+def _disable_github_workflow():
     token    = os.environ.get("GITHUB_TOKEN")
     repo     = os.environ.get("GITHUB_REPOSITORY")
     workflow = os.environ.get("GITHUB_WORKFLOW_REF", "").split("@")[0].split("/")[-1]
@@ -37,9 +43,28 @@ def disable_workflow():
     })
     try:
         urllib.request.urlopen(req, timeout=10)
-        print("Workflow automatisch deaktiviert.")
+        print("GitHub Workflow automatisch deaktiviert.")
     except Exception as e:
-        print(f"Workflow deaktivieren fehlgeschlagen (manuell deaktivieren!): {e}")
+        print(f"GitHub Workflow deaktivieren fehlgeschlagen: {e}")
+
+
+def _disable_cronjob_org():
+    api_key = os.environ.get("CRONJOB_API_KEY")
+    job_id  = os.environ.get("CRONJOB_JOB_ID")
+    if not all([api_key, job_id]):
+        print("cron-job.org Credentials fehlen — manuell deaktivieren!")
+        return
+    url = f"https://api.cron-job.org/jobs/{job_id}"
+    body = json.dumps({"job": {"enabled": False}}).encode()
+    req = urllib.request.Request(url, data=body, method="PATCH", headers={
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    })
+    try:
+        urllib.request.urlopen(req, timeout=10)
+        print("cron-job.org Job automatisch deaktiviert.")
+    except Exception as e:
+        print(f"cron-job.org deaktivieren fehlgeschlagen: {e}")
 
 
 def instance_already_exists():
@@ -58,13 +83,13 @@ def get_image_ocid():
     images = compute.list_images(
         compartment_id           = COMPARTMENT,
         operating_system         = "Canonical Ubuntu",
-        operating_system_version = "22.04",
+        operating_system_version = "24.04 Minimal",
         shape                    = "VM.Standard.A1.Flex",
         sort_by                  = "TIMECREATED",
         sort_order               = "DESC",
     ).data
     if not images:
-        print("Kein Ubuntu 22.04 ARM Image gefunden!")
+        print("Kein Ubuntu 24.04 ARM Image gefunden!")
         sys.exit(1)
     print(f"Using image: {images[0].display_name}")
     return images[0].id

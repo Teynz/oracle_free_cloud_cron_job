@@ -33,4 +33,6 @@ jobs:
           OCI_SUBNET_OCID:      ${{ secrets.OCI_SUBNET_OCID }}
           OCI_SSH_PUBLIC_KEY:   ${{ vars.OCI_SSH_PUBLIC_KEY }}
           GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+          CRONJOB_API_KEY: ${{ secrets.CRONJOB_API_KEY }}
+          CRONJOB_JOB_ID:  ${{ secrets.CRONJOB_JOB_ID }}
         run: python create_instance.py
