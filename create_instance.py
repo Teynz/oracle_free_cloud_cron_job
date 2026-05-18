@@ -149,7 +149,7 @@ def try_create(ad, image_ocid):
         source_details = oci.core.models.InstanceSourceViaImageDetails(
             image_id                = image_ocid,
             source_type             = "image",
-            boot_volume_size_in_gbs = 200,
+            boot_volume_size_in_gbs = 150,
         ),
         create_vnic_details = oci.core.models.CreateVnicDetails(
             subnet_id        = SUBNET,
