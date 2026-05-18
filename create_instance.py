@@ -80,10 +80,15 @@ def instance_already_exists():
 
 
 def get_image_ocid():
-    for os_version in ["24.04 Minimal", "24.04", "22.04"]:
+    candidates = [
+        ("Canonical Ubuntu Minimal", "24.04"),
+        ("Canonical Ubuntu",         "24.04"),
+        ("Canonical Ubuntu",         "22.04"),
+    ]
+    for os_name, os_version in candidates:
         images = compute.list_images(
             compartment_id           = COMPARTMENT,
-            operating_system         = "Canonical Ubuntu",
+            operating_system         = os_name,
             operating_system_version = os_version,
             shape                    = "VM.Standard.A1.Flex",
             sort_by                  = "TIMECREATED",
