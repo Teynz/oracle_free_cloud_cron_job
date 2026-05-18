@@ -80,19 +80,20 @@ def instance_already_exists():
 
 
 def get_image_ocid():
-    images = compute.list_images(
-        compartment_id           = COMPARTMENT,
-        operating_system         = "Canonical Ubuntu",
-        operating_system_version = "24.04 Minimal",
-        shape                    = "VM.Standard.A1.Flex",
-        sort_by                  = "TIMECREATED",
-        sort_order               = "DESC",
-    ).data
-    if not images:
-        print("Kein Ubuntu 24.04 ARM Image gefunden!")
-        sys.exit(1)
-    print(f"Using image: {images[0].display_name}")
-    return images[0].id
+    for os_version in ["24.04 Minimal", "24.04", "22.04"]:
+        images = compute.list_images(
+            compartment_id           = COMPARTMENT,
+            operating_system         = "Canonical Ubuntu",
+            operating_system_version = os_version,
+            shape                    = "VM.Standard.A1.Flex",
+            sort_by                  = "TIMECREATED",
+            sort_order               = "DESC",
+        ).data
+        if images:
+            print(f"Using image: {images[0].display_name}")
+            return images[0].id
+    print("Kein passendes Ubuntu ARM Image gefunden!")
+    sys.exit(1)
 
 
 def try_create(ad, image_ocid):
